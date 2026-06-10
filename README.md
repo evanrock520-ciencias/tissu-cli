@@ -28,3 +28,37 @@ pip install .
 ```bash
 tissu-cli [COMMAND] [OPTIONS]
 ```
+
+## Commands
+
+### `info`
+
+Show information about a scene (`.json`) or state (`.tissu`) file.
+
+```bash
+tissu-cli info <path>
+```
+
+### `bake`
+
+Bake a cloth simulation and export it to Alembic (`.abc`).
+
+```bash
+tissu-cli bake <scene_path> [OPTIONS]
+```
+
+| Option          | Default       | Description          |
+|-----------------|---------------|----------------------|
+| `--out`, `-o`   | `output.abc`  | Output Alembic path  |
+| `--start`       | `1`           | Start frame          |
+| `--end`         | `120`         | End frame            |
+| `--fps`         | `24.0`        | Frames per second    |
+| `--state`, `-s` | —             | Load initial state   |
+
+### `view`
+
+View a cloth simulation in a 3D viewer.
+
+```bash
+tissu-cli view <scene_path> [--state, -s <path>]
+```
