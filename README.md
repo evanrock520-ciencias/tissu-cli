@@ -19,7 +19,7 @@ Then, install Tissu CLI:
 
 ```bash
 git clone https://github.com/evanrock520-ciencias/Tissu-CLI.git
-cd Tissu-CLI
+cd tissu-cli
 pip install .
 ```
 
