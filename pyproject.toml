@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build_backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "tissu-cli"
+version = "1.0.0"
+description = "A command line interface for Tissu"
+requires-python = ">= 3.8"
+dependencies = [
+    "typer",
+    "rich",
+    "tqdm"
+]
+authors = [{ name = "Evan Miranda"}]
+license = { text = "Apache-2.0"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[project.scripts]
+tissu-cli = "tissu_cli.main:app"
