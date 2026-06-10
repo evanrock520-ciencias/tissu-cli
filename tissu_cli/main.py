@@ -25,6 +25,39 @@ def info(path: str):
             state_status(path)
 
 
+@app.command()
+def bake(
+    scene_path: str,
+    out_path: str = typer.Option("output.abc", "--out", "-o"),
+    start: int = typer.Option(1, "--start"),
+    end: int = typer.Option(120, "--end"),
+    fps: float = typer.Option(24.0, "--fps"),
+    state_path: str = typer.Option(None, "--state", "-s")
+):
+    sim = Simulation.load_scene(scene_path)
+    
+    if state_path != None:
+        sim.load_state(state_path)
+    
+    sim.bake_alembic(
+        filepath=out_path,
+        start_frame=start,
+        end_frame=end,
+        fps=fps
+    )
+
+@app.command()
+def view(scene_path: str, state_path: str = typer.Option(None, "--state", "-s")):
+    sim = Simulation.load_scene(scene_path)
+    
+    if state_path != None:
+        sim.load_state(state_path)
+    
+    sim.view()
+
+
+@app.command()
+
 def row(key: str, value: str, key_width: int = 10, value_style: str = "white"):
     t = Text()
     t.append(key.ljust(key_width), style="cyan")
