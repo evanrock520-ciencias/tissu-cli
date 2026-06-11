@@ -1,3 +1,7 @@
+[![CI](https://github.com/evanrock520-ciencias/tissu-cli/actions/workflows/ci.yaml/badge.svg)](https://github.com/evanrock520-ciencias/tissu-cli/actions/workflows/ci.yaml)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![CLI](https://img.shields.io/badge/CLI-Reference-blue)
+
 # Tissu CLI
 
 A command-line interface for [Tissu](https://github.com/evanrock520-ciencias/Tissu), letting you run cloth simulations directly from your terminal without writing Python scripts.
