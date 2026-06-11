@@ -57,6 +57,25 @@ def view(scene_path: str, state_path: str = typer.Option(None, "--state", "-s"))
 
 
 @app.command()
+def snapshots(
+    scene_path: str, 
+    out_dir: str, 
+    cloth: str,
+    start: int = typer.Option(1, "--start"),
+    end: int = typer.Option(120, "--end"),
+    state_path: str = typer.Option(None, "--state", "-s")
+    ):
+    sim = Simulation.load_scene(scene_path)
+    
+    if state_path != None:
+        sim.load_scene(state_path)
+    
+    @sim.on_range(start, end)
+    def snapshot(sim: Simulation):
+        sim.save_snapshot(filename=out_dir + "/" + cloth + str(sim.frame) + ".obj", fabric_name=cloth)
+        
+    sim.simulate(end - start)
+    
 
 def row(key: str, value: str, key_width: int = 10, value_style: str = "white"):
     t = Text()
