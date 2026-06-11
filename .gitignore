@@ -206,6 +206,13 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Generated simulation artifacts
+*.abc
+*.obj
+
+# Dear ImGui window layout
+imgui.ini
+
 # PyPI configuration file
 .pypirc
 
