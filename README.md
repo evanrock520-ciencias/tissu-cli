@@ -43,6 +43,68 @@ tissu-cli --install-completion
 tissu-cli [COMMAND] [OPTIONS]
 ```
 
+### `init`
+
+Initialize a new scene directory with a blank scene file.
+
+```bash
+tissu-cli init <dir> [OPTIONS]
+```
+
+| Option          | Default       | Description               |
+|-----------------|---------------|---------------------------|
+| `--substeps`    | `10`          | Solver substeps           |
+| `--iterations`  | `2`           | Solver iterations         |
+| `--gravity`     | `0,-9.81,0`   | Gravity vector (x,y,z)    |
+| `--thickness`   | `0.05`        | Collision thickness       |
+| `--wind`        | `0,0,0`       | Wind vector (x,y,z)       |
+| `--air-density` | `0.1`         | Air density               |
+
+### `add-fabric`
+
+Add a fabric to a scene directory.
+
+```bash
+tissu-cli add-fabric <dir> <name> [OPTIONS]
+```
+
+| Option                | Default  | Description                            |
+|-----------------------|----------|----------------------------------------|
+| `--rows`, `-r`        | —        | Grid rows (required for grid)          |
+| `--cols`, `-c`        | —        | Grid cols (required for grid)          |
+| `--spacing`           | `0.05`   | Distance between particles             |
+| `--path`, `-p`        | —        | Path to OBJ mesh (alternative to grid) |
+| `--density`           | `0.1`    | Material density                       |
+| `--structural`        | `1e-9`   | Structural compliance                  |
+| `--shear`             | `1e-8`   | Shear compliance                       |
+| `--bending`           | `0.1`    | Bending compliance                     |
+| `--pin-mode`          | —        | Pin mode: `top_corners`, `by_height`   |
+| `--pin-compliance`    | `1e-9`   | Pin compliance                         |
+| `--pin-threshold`     | `0.01`   | Pin threshold                          |
+
+### `add-collider`
+
+Add a collider to a scene directory.
+
+```bash
+tissu-cli add-collider <dir> [OPTIONS]
+```
+
+| Option       | Default       | Description                         |
+|--------------|---------------|-------------------------------------|
+| `--plane`    | —             | Add a plane collider                |
+| `--origin`   | `0,0,0`       | Plane origin (x,y,z)                |
+| `--normal`   | `0,1,0`       | Plane normal (x,y,z)                |
+| `--sphere`   | —             | Add a sphere collider               |
+| `--center`   | `0,0,0`       | Sphere center (x,y,z)               |
+| `--capsule`  | —             | Add a capsule collider              |
+| `--start`    | `0,0,0`       | Capsule start (x,y,z)               |
+| `--end`      | `0,1,0`       | Capsule end (x,y,z)                 |
+| `--radius`   | `0.5`         | Sphere/capsule radius               |
+| `--friction` | `0.5`         | Friction coefficient                |
+
+One of `--plane`, `--sphere`, or `--capsule` is required.
+
 ### `info`
 
 Show information about a scene (`.json`) or state (`.tissu`) file.
