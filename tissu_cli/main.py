@@ -5,7 +5,7 @@ from rich.rule import Rule
 from enum import Enum
 from pathlib import Path
 import json
-from prompt_toolkit import prompt
+from prompt_toolkit import prompt           # For Tissu Shell
 from tissu import _cloth_sdk_core as sdk
 from tissu import Simulation
 
@@ -70,7 +70,7 @@ def snapshots(
     sim = Simulation.load_scene(scene_path)
     
     if state_path != None:
-        sim.load_scene(state_path)
+        sim.load_state(state_path)
     
     @sim.on_range(start, end)
     def snapshot(sim: Simulation):
@@ -242,12 +242,40 @@ def add_collider(
 
     console.print(f"[cyan]Collider[/cyan] [bold]{collider['type']}[/bold] added to [dim]{file_path}[/dim]")
 
+
+@app.command()
+def plot(scene_path: str, frame: int, fabric: str = typer.Option(None, "--fabric")):
+    sim = Simulation.load_scene(scene_path)
+    sim.simulate(frame)
+    sim.plot(fabric)
+
+
+@app.command()
+def plot_gif(
+    scene_path: str, 
+    out_path: str,
+    fabric: str = typer.Option(None, "--fabric"), 
+    start: int = typer.Option(1, "--start", "-s"), 
+    end: int = typer.Option(120, "--end", "-e"), 
+    fps: float = typer.Option(30.0, "--fps"), 
+    ):
+    out_path = scene_path.split("/")[0] + "/exports/preview/" + out_path
+    sim = Simulation.load_scene(scene_path)
+    sim.plot_gif(fabric, start, end, fps, out_path)
+
+
 def create_dir(name: str):
     if not Path(name).exists():
         Path(name).mkdir()
     
     if not Path(f"{name}/exports").exists():
         Path(f"{name}/exports").mkdir()
+        
+    if not Path(f"{name}/exports/preview").exists():
+        Path(f"{name}/exports/preview").mkdir()
+        
+    if not Path(f"{name}/exports/animations").exists():
+        Path(f"{name}/exports/animations").mkdir()
         
     if not Path(f"{name}/states").exists():
         Path(f"{name}/states").mkdir()
