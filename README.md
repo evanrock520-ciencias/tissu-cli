@@ -102,8 +102,10 @@ tissu-cli add-collider <dir> [OPTIONS]
 | `--end`      | `0,1,0`       | Capsule end (x,y,z)                 |
 | `--radius`   | `0.5`         | Sphere/capsule radius               |
 | `--friction` | `0.5`         | Friction coefficient                |
+| `--mesh`     | —             | Add a mesh collider                 |
+| `--mesh-path`| —             | Path to OBJ mesh (required for mesh)|
 
-One of `--plane`, `--sphere`, or `--capsule` is required.
+One of `--plane`, `--sphere`, `--capsule`, or `--mesh` is required.
 
 ### `info`
 
@@ -150,6 +152,49 @@ tissu-cli snapshots <scene_path> <out_dir> <cloth> [OPTIONS]
 | `--start`       | `1`           | Start frame          |
 | `--end`         | `120`         | End frame            |
 | `--state`, `-s` | —             | Load initial state   |
+
+### `plot`
+
+Visualize a simulation frame in a 3D matplotlib plot.
+
+```bash
+tissu-cli plot <scene_path> <frame> [OPTIONS]
+```
+
+| Option     | Default | Description          |
+|------------|---------|----------------------|
+| `--fabric` | —       | Fabric name to plot  |
+
+### `plot-gif`
+
+Generate an animated GIF preview of a simulation.
+
+```bash
+tissu-cli plot-gif <scene_path> <out_path> [OPTIONS]
+```
+
+| Option          | Default | Description            |
+|-----------------|---------|------------------------|
+| `--fabric`      | —       | Fabric name to render  |
+| `--start`, `-s` | `1`     | Start frame            |
+| `--end`, `-e`   | `120`   | End frame              |
+| `--fps`         | `30.0`  | Frames per second      |
+
+Output is written to `<scene_dir>/exports/preview/<out_path>`.
+
+### `save-state`
+
+Run a simulation and save the solver state to a `.tissu` file.
+
+```bash
+tissu-cli save-state <scene_path> <out_path> <frame>
+```
+
+| Argument     | Description                    |
+|--------------|--------------------------------|
+| `scene_path` | Path to scene JSON             |
+| `out_path`   | Output `.tissu` file path      |
+| `frame`      | Frame number to simulate to    |
 
 ---
 
