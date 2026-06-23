@@ -1,30 +1,55 @@
+import json
+from pathlib import Path
+
 import typer
 from rich.console import Console
-from rich.text import Text
-from rich.rule import Rule
-from enum import Enum
-from pathlib import Path
-import json
-from prompt_toolkit import prompt           # For Tissu Shell
-from tissu import _cloth_sdk_core as sdk
 from tissu import Simulation
 
-app = typer.Typer()
-console = Console()
+from tissu_cli.display import console, scene_status, show_table, state_status
+from tissu_cli.files import get_available_files, get_file_format, get_name
+from tissu_cli.serializers import scene_to_dict, state_to_dict
+from tissu_cli.types import CLIState, FilesSuported, Type
 
-class FilesSuported(Enum):
-    JSON = ".json",
-    TISSU = ".tissu",
+app = typer.Typer()
+err_console = Console(stderr=True)
+
+
+@app.callback()
+def main(
+    ctx: typer.Context,
+    json: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress non-essential output"),
+):
+    ctx.obj = CLIState(json_output=json, quiet=quiet)
 
 
 @app.command()
-def info(path: str):
-    format = get_file_format(path)
-    match format:
-        case FilesSuported.JSON:
-            scene_status(path)
-        case FilesSuported.TISSU:
-            state_status(path)
+def info(ctx: typer.Context, path: str):
+    try:
+        format = get_file_format(path)
+        st = ctx.obj
+
+        if st.json_output:
+            match format:
+                case FilesSuported.JSON:
+                    console.print(json.dumps(scene_to_dict(path), indent=2))
+                case FilesSuported.TISSU:
+                    console.print(json.dumps(state_to_dict(path), indent=2))
+        else:
+            match format:
+                case FilesSuported.JSON:
+                    scene_status(path)
+                case FilesSuported.TISSU:
+                    state_status(path)
+    except FileNotFoundError as e:
+        err_console.print(f"[red]Error:[/red] File not found: {e.filename or path}")
+        raise typer.Exit(1)
+    except json.JSONDecodeError as e:
+        err_console.print(f"[red]Error:[/red] Invalid JSON: {e}")
+        raise typer.Exit(1)
+    except (ValueError, RuntimeError) as e:
+        err_console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -37,10 +62,10 @@ def bake(
     state_path: str = typer.Option(None, "--state", "-s")
 ):
     sim = Simulation.load_scene(scene_path)
-    
+
     if state_path != None:
         sim.load_state(state_path)
-    
+
     sim.bake_alembic(
         filepath=out_path,
         start_frame=start,
@@ -48,34 +73,35 @@ def bake(
         fps=fps
     )
 
+
 @app.command()
 def view(scene_path: str, state_path: str = typer.Option(None, "--state", "-s")):
     sim = Simulation.load_scene(scene_path)
-    
+
     if state_path != None:
         sim.load_state(state_path)
-    
+
     sim.view()
 
 
 @app.command()
 def snapshots(
-    scene_path: str, 
-    out_dir: str, 
+    scene_path: str,
+    out_dir: str,
     cloth: str,
     start: int = typer.Option(1, "--start"),
     end: int = typer.Option(120, "--end"),
     state_path: str = typer.Option(None, "--state", "-s")
     ):
     sim = Simulation.load_scene(scene_path)
-    
+
     if state_path != None:
         sim.load_state(state_path)
-    
+
     @sim.on_range(start, end)
     def snapshot(sim: Simulation):
         sim.save_snapshot(filename=out_dir + "/" + cloth + str(sim.frame) + ".obj", fabric_name=cloth)
-        
+
     sim.simulate(end - start)
 
 
@@ -121,6 +147,7 @@ def init(
         json.dump(jsonHeader, file, indent=4, ensure_ascii=False)
 
     console.print(f"[cyan]Scene[/cyan] [bold]{dir_path}[/bold] initialized at [dim]{file_path}[/dim]")
+
 
 @app.command()
 def add_fabric(
@@ -186,6 +213,7 @@ def add_fabric(
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(scene, f, indent=4, ensure_ascii=False)
     console.print(f"[cyan]Fabric[/cyan] [bold]{name}[/bold] added to [dim]{file_path}[/dim]")
+
 
 @app.command()
 def add_collider(
@@ -259,12 +287,12 @@ def plot(scene_path: str, frame: int, fabric: str = typer.Option(None, "--fabric
 
 @app.command()
 def plot_gif(
-    scene_path: str, 
+    scene_path: str,
     out_path: str,
-    fabric: str = typer.Option(None, "--fabric"), 
-    start: int = typer.Option(1, "--start", "-s"), 
-    end: int = typer.Option(120, "--end", "-e"), 
-    fps: float = typer.Option(30.0, "--fps"), 
+    fabric: str = typer.Option(None, "--fabric"),
+    start: int = typer.Option(1, "--start", "-s"),
+    end: int = typer.Option(120, "--end", "-e"),
+    fps: float = typer.Option(30.0, "--fps"),
     ):
     out_path = scene_path.split("/")[0] + "/exports/preview/" + out_path
     sim = Simulation.load_scene(scene_path)
@@ -281,6 +309,47 @@ def plot_energy(
     sim.simulate(frame)
     sim.stop_recording()
     sim.plot_energy()
+
+
+@app.command()
+def list(
+    ctx: typer.Context,
+    dir_path: str,
+    materials: bool = typer.Option(False, "-m", "--materials", help="Show materials"),
+    physics: bool = typer.Option(False, "-p", "--physics", help="Show physics"),
+    scenes: bool = typer.Option(False, "-s", "--scenes", help="Show scenes"),
+    states: bool = typer.Option(False, "-e", "--states", help="Show states"),
+    recursive: bool = typer.Option(False, "-r", "--recursive", help="Search recursively"),
+):
+    try:
+        selected = [t for t, v in [
+            (Type.SCENE, scenes), (Type.PHYSICS, physics),
+            (Type.MATERIAL, materials), (Type.STATE, states)
+        ] if v] or [*Type]
+
+        files = get_available_files(dir_path, recursive)
+        st = ctx.obj
+
+        if st.json_output:
+            result = {}
+            for t in selected:
+                entries = []
+                for f in files[t]:
+                    name = get_name(f.resolve()) if f.suffix == ".json" else f.stem
+                    path = str(f.relative_to(f.anchor) if f.is_absolute() else f)
+                    entries.append({"name": name, "path": path})
+                result[t.value] = entries
+            console.print(json.dumps(result, indent=2))
+        else:
+            for t in selected:
+                if files[t]:
+                    show_table(t.value.replace(t.value[0], t.value[0].upper(), 1), files[t], t)
+    except FileNotFoundError as e:
+        err_console.print(f"[red]Error:[/red] Directory not found: {e.filename or dir_path}")
+        raise typer.Exit(1)
+    except Exception as e:
+        err_console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -317,126 +386,21 @@ def save_physics(
 def create_dir(name: str):
     if not Path(name).exists():
         Path(name).mkdir()
-    
+
     if not Path(f"{name}/exports").exists():
         Path(f"{name}/exports").mkdir()
-        
+
     if not Path(f"{name}/exports/preview").exists():
         Path(f"{name}/exports/preview").mkdir()
-        
+
     if not Path(f"{name}/exports/animations").exists():
         Path(f"{name}/exports/animations").mkdir()
-        
+
     if not Path(f"{name}/states").exists():
         Path(f"{name}/states").mkdir()
-        
+
     if not Path(f"{name}/assets").exists():
         Path(f"{name}/assets").mkdir()
-
-def row(key: str, value: str, key_width: int = 10, value_style: str = "white"):
-    t = Text()
-    t.append(key.ljust(key_width), style="cyan")
-    t.append(" ── ", style="dim")
-    t.append(value, style=value_style)
-    console.print(t)
-
-
-def section(title: str, count: int):
-    t = Text()
-    t.append(title, style="dim")
-    t.append(f"  {count}", style="cyan bold")
-    console.print()
-    console.print(t)
-    console.print(Rule(style="dim"))
-
-
-def tag(label: str, style: str = "bold cyan on grey11") -> Text:
-    t = Text()
-    t.append(f" {label} ", style=style)
-    return t
-
-
-def scene_status(path: str):
-    header = Text()
-    header.append("Scene info", style="bold white")
-    console.print()
-    console.print(header)
-    console.print(Rule(style="bright_black"))
-
-    scene = Simulation.get_scene_status(path)
-    fabrics = scene.fabrics
-    colliders = scene.colliders
-
-    row("name",    scene.name)
-    row("version", str(scene.version))
-    row("physics", scene.physics_preset.split("/")[-1].split(".")[0])
-
-    section("fabrics", len(fabrics))
-    for fabric in fabrics:
-        t = Text()
-        t.append(f"  {fabric.name}", style="cyan bold")
-        t.append("  ")
-        t.append_text(tag(fabric.type, "bold yellow on grey11"))
-        console.print(t)
-
-        if fabric.type == "grid":
-            details = Text("  ")
-            details.append(f"{fabric.cols}×{fabric.rows}", style="white")
-            details.append("  ·  ", style="dim")
-            details.append("spacing ", style="dim")
-            details.append(f"{fabric.spacing:.2f}", style="yellow")
-            details.append("  ·  ", style="dim")
-            details.append("material ", style="dim")
-            details.append(fabric.material.split("/")[-1].split(".")[0], style="cyan")
-            console.print(details)
-        elif fabric.type == "mesh":
-            details = Text("  ")
-            details.append("source ", style="dim")
-            details.append(fabric.source, style="cyan")
-            console.print(details)
-
-        pins = Text("  ")
-        pins.append("pins ", style="dim")
-        pins.append("── ", style="dim")
-        pins.append(fabric.pin_mode, style="cyan")
-        console.print(pins)
-
-    section("colliders", len(colliders))
-    for collider in colliders:
-        t = Text()
-        t.append(f"  {collider.type}", style="cyan bold")
-        console.print(t)
-
-        summary = Text("  ")
-        summary.append(collider.summary, style="dim white")
-        console.print(summary)
-
-    console.print()
-
-
-def state_status(path: str):
-    header = Text()
-    header.append("state info", style="bold white")
-    console.print()
-    console.print(header)
-    console.print(Rule(style="bright_black"))
-
-    state = sdk.StateSerializer.get_state_info(path)
-
-    row("version",   str(state.version))
-    row("frame",     str(state.frame),         value_style="yellow")
-    row("time",      f"{state.timestamp:.3f}s", value_style="yellow")
-    row("particles", f"{state.particle_count:,}", value_style="yellow")
-
-    console.print()
-
-
-def get_file_format(path: str) -> FilesSuported:
-    if path.endswith(".json"):
-        return FilesSuported.JSON
-    elif path.endswith(".tissu"):
-        return FilesSuported.TISSU
-    raise ValueError(f"File format not supported: {path.split('.')[-1]}")
 
 
 if __name__ == "__main__":
