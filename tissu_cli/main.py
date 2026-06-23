@@ -235,7 +235,7 @@ def add_collider(
             "path": mesh_path
         }
     else:
-        console.print("[red]Error:[/red] Provide --plane, --sphere, or --capsule.")
+        console.print("[red]Error:[/red] Provide --plane, --sphere, --capsule, or --mesh")
         raise typer.Exit(1)
 
     collider["friction"] = friction
@@ -270,6 +270,29 @@ def plot_gif(
     sim = Simulation.load_scene(scene_path)
     sim.plot_gif(fabric, start, end, fps, out_path)
 
+
+@app.command()
+def plot_energy(
+    scene_path: str,
+    frame: int
+):
+    sim = Simulation.load_scene(scene_path)
+    sim.start_recording()
+    sim.simulate(frame)
+    sim.stop_recording()
+    sim.plot_energy()
+
+
+@app.command()
+def physics(
+    scene_path: str,
+    physics_path: str
+):
+    sim = Simulation.load_scene(scene_path)
+    sim.load_physics(physics_path)
+    sim.save_scene(scene_path)
+
+
 @app.command()
 def save_state(
     scene_path: str,
@@ -279,6 +302,17 @@ def save_state(
     sim = Simulation.load_scene(scene_path)
     sim.simulate(frame)
     sim.save_state(out_path)
+
+
+@app.command()
+def save_physics(
+    scene_path: str,
+    out_path: str,
+    name: str = typer.Option("physics", "--name")
+):
+    sim = Simulation.load_scene(scene_path)
+    sim.save_physics(out_path, name)
+
 
 def create_dir(name: str):
     if not Path(name).exists():
