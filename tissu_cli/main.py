@@ -200,6 +200,8 @@ def add_collider(
     end: str = typer.Option("0,1,0", "--end"),
     radius: float = typer.Option(0.5, "--radius"),
     friction: float = typer.Option(0.5, "--friction"),
+    mesh: bool = typer.Option(False, "--mesh"),
+    mesh_path: str = typer.Option(None, "--mesh-path")
 ):
     file_path = f"{dir_path}/{dir_path}.json"
     with open(file_path, "r", encoding="utf-8") as f:
@@ -226,6 +228,11 @@ def add_collider(
             "start": parse_vec(start),
             "end": parse_vec(end),
             "radius": radius,
+        }
+    elif mesh:
+        collider = {
+            "type": "mesh",
+            "path": mesh_path
         }
     else:
         console.print("[red]Error:[/red] Provide --plane, --sphere, or --capsule.")
@@ -263,6 +270,15 @@ def plot_gif(
     sim = Simulation.load_scene(scene_path)
     sim.plot_gif(fabric, start, end, fps, out_path)
 
+@app.command()
+def save_state(
+    scene_path: str,
+    out_path: str,
+    frame: int
+):
+    sim = Simulation.load_scene(scene_path)
+    sim.simulate(frame)
+    sim.save_state(out_path)
 
 def create_dir(name: str):
     if not Path(name).exists():
