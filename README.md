@@ -107,12 +107,27 @@ tissu-cli add-collider <dir> [OPTIONS]
 
 One of `--plane`, `--sphere`, `--capsule`, or `--mesh` is required.
 
+### `add-pin`
+
+Add pins to a fabric in a scene directory.
+
+```bash
+tissu-cli add-pin <dir> <fabric> <mode> [OPTIONS]
+```
+
+| Option           | Default | Description                       |
+|------------------|---------|-----------------------------------|
+| `--compliance`   | `0.1`   | Pin constraint compliance         |
+| `--threshold`    | `0.01`  | Pin constraint threshold          |
+
+`mode` must be `top_corners` or `by_height`.
+
 ### `info`
 
 Show information about a scene (`.json`) or state (`.tissu`) file.
 
 ```bash
-tissu-cli info <path>
+tissu-cli info <dir>
 ```
 
 ### `bake`
@@ -120,7 +135,7 @@ tissu-cli info <path>
 Bake a cloth simulation and export it to Alembic (`.abc`).
 
 ```bash
-tissu-cli bake <scene_path> [OPTIONS]
+tissu-cli bake <dir> [OPTIONS]
 ```
 
 | Option          | Default       | Description          |
@@ -136,7 +151,7 @@ tissu-cli bake <scene_path> [OPTIONS]
 View a cloth simulation in a 3D viewer.
 
 ```bash
-tissu-cli view <scene_path> [--state, -s <path>]
+tissu-cli view <dir> [--state, -s <path>]
 ```
 
 ### `snapshots`
@@ -144,7 +159,7 @@ tissu-cli view <scene_path> [--state, -s <path>]
 Export OBJ mesh snapshots for each frame of a simulation.
 
 ```bash
-tissu-cli snapshots <scene_path> <out_dir> <cloth> [OPTIONS]
+tissu-cli snapshots <dir> <out_dir> <cloth> [OPTIONS]
 ```
 
 | Option          | Default       | Description          |
@@ -153,12 +168,28 @@ tissu-cli snapshots <scene_path> <out_dir> <cloth> [OPTIONS]
 | `--end`         | `120`         | End frame            |
 | `--state`, `-s` | —             | Load initial state   |
 
+### `list-files`
+
+List available files (scenes, materials, physics, states) in a directory.
+
+```bash
+tissu-cli list-files <dir> [OPTIONS]
+```
+
+| Option                | Description                        |
+|-----------------------|------------------------------------|
+| `-m`, `--materials`   | Show materials                     |
+| `-p`, `--physics`     | Show physics                       |
+| `-s`, `--scenes`      | Show scenes                        |
+| `-e`, `--states`      | Show states                        |
+| `-r`, `--recursive`   | Search recursively                 |
+
 ### `plot`
 
 Visualize a simulation frame in a 3D matplotlib plot.
 
 ```bash
-tissu-cli plot <scene_path> <frame> [OPTIONS]
+tissu-cli plot <dir> <frame> [OPTIONS]
 ```
 
 | Option     | Default | Description          |
@@ -170,7 +201,7 @@ tissu-cli plot <scene_path> <frame> [OPTIONS]
 Generate an animated GIF preview of a simulation.
 
 ```bash
-tissu-cli plot-gif <scene_path> <out_path> [OPTIONS]
+tissu-cli plot-gif <dir> <out_path> [OPTIONS]
 ```
 
 | Option          | Default | Description            |
@@ -180,21 +211,49 @@ tissu-cli plot-gif <scene_path> <out_path> [OPTIONS]
 | `--end`, `-e`   | `120`   | End frame              |
 | `--fps`         | `30.0`  | Frames per second      |
 
-Output is written to `<scene_dir>/exports/preview/<out_path>`.
+Output is written to `<dir>/exports/preview/<out_path>`.
+
+### `plot-energy`
+
+Simulate and plot energy over time.
+
+```bash
+tissu-cli plot-energy <dir> <frame>
+```
+
+### `physics`
+
+Load a physics config file into a scene.
+
+```bash
+tissu-cli physics <dir> <physics_path>
+```
 
 ### `save-state`
 
 Run a simulation and save the solver state to a `.tissu` file.
 
 ```bash
-tissu-cli save-state <scene_path> <out_path> <frame>
+tissu-cli save-state <dir> <out_path> <frame>
 ```
 
-| Argument     | Description                    |
-|--------------|--------------------------------|
-| `scene_path` | Path to scene JSON             |
-| `out_path`   | Output `.tissu` file path      |
-| `frame`      | Frame number to simulate to    |
+| Argument   | Description                    |
+|------------|--------------------------------|
+| `dir`      | Scene directory                |
+| `out_path` | Output `.tissu` file path      |
+| `frame`    | Frame number to simulate to    |
+
+### `save-physics`
+
+Extract and save the physics config from a scene.
+
+```bash
+tissu-cli save-physics <dir> <out_path> [OPTIONS]
+```
+
+| Option   | Default    | Description           |
+|----------|------------|-----------------------|
+| `--name` | `physics`  | Physics config name   |
 
 ---
 
@@ -203,7 +262,7 @@ tissu-cli save-state <scene_path> <out_path> <frame>
 Sample scenes and assets are included under `data/`:
 
 ```bash
-tissu-cli info data/scenes/curtain.json
-tissu-cli bake data/scenes/curtain.json -o curtain.abc
-tissu-cli snapshots data/scenes/curtain.json ./frames curtain
+tissu-cli info data/scenes/curtain
+tissu-cli bake data/scenes/curtain -o curtain.abc
+tissu-cli snapshots data/scenes/curtain ./frames curtain
 ```
