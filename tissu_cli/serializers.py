@@ -18,7 +18,7 @@ def scene_to_dict(path: str) -> dict:
 
     colliders = []
     for c in scene.colliders:
-        colliders.append({"type": c.type, "summary": c.summary})
+        colliders.append({"name": c.name, "type": c.type, "summary": c.summary})
 
     return {
         "type": "scene",

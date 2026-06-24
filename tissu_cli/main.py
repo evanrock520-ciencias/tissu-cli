@@ -5,7 +5,7 @@ import typer
 from rich.console import Console
 from tissu import Material, Simulation, _cloth_sdk_core as sdk
 
-from tissu_cli.display import console, scene_status, show_table, state_status
+from tissu_cli.display import console, material_status, physics_status, scene_status, show_table, state_status
 from tissu_cli.files import get_available_files, get_file_format, get_name
 from tissu_cli.serializers import scene_to_dict, state_to_dict
 from tissu_cli.types import CLIState, FilesSuported, Type
@@ -247,7 +247,30 @@ def remove_fabric(
     console.print(f"[bold]{fabric}[/bold] removed")
 
 
-# TODO: Remove colliders
+@app.command()
+def remove_collider(
+    dir_path: str,
+    collider: str 
+):
+    file_path =  f"{dir_path}/{dir_path}.json"
+    with open(file_path, 'r', encoding="utf-8") as f:
+        scene = json.load(f)
+
+    colliders = scene.get("colliders")
+    if not colliders:
+        console.print("[red]Error:[/red] No colliders found in scene.")
+        raise typer.Exit(1)
+    
+    target = next((i for i, c in enumerate(colliders) if c.get("name") == collider), None)
+    if target is None:
+        console.print(f"[yellow]Collider [bold]{collider}[/bold] is not part of the scene.[/yellow]")
+        raise typer.Exit(0)
+
+    del colliders[target]
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(scene, f, indent=4, ensure_ascii=False)
+    console.print(f"[bold]{collider}[/bold] removed")
+
 
 
 @app.command()
@@ -316,6 +339,7 @@ def unpin(
 @app.command()
 def add_collider(
     dir_path: str,
+    name: str = typer.Option("", "--name", "-n"),
     plane: bool = typer.Option(False, "--plane"),
     origin: str = typer.Option("0,0,0", "--origin"),
     normal: str = typer.Option("0,1,0", "--normal"),
@@ -365,6 +389,7 @@ def add_collider(
         raise typer.Exit(1)
 
     collider["friction"] = friction
+    collider["name"] = name
 
     if not isinstance(scene.get("colliders"), list):
         scene["colliders"] = []
@@ -483,19 +508,121 @@ def save_physics(
 
 
 @app.command()
-def material(
-    dir_path: str,
+def create_material(
+    material_path: str,
     name: str,
     density: float = typer.Option(0.1, "--density"),
     structural: float = typer.Option(1e-9, "--structural"),
     shear: float = typer.Option(1e-8, "--shear"),
     bending: float = typer.Option(0.01, "--bending")
 ):
-    file_path = f"{dir_path}/exports/materials/{name}.json"
-    Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(material_path).parent.mkdir(parents=True, exist_ok=True)
     material = Material(density, structural, shear, bending)
-    sdk.ConfigLoader.save_material(file_path, material._native, name)
-    console.print(f"[cyan]Material[/cyan] [bold]{name}[/bold] saved to [dim]{file_path}[/dim]")
+    sdk.ConfigLoader.save_material(material_path, material._native, name)
+    console.print(f"[cyan]Material[/cyan] [bold]{name}[/bold] saved to [dim]{material_path}[/dim]")
+
+
+@app.command()
+def extract_material(
+    dir_path: str,
+    fabric: str,
+    out_path: str
+):
+    file_path = f"{dir_path}/{dir_path}.json"
+    sim = Simulation.load_scene(file_path)
+    sim.save_material(out_path, fabric)
+
+@app.command()
+def apply_material(
+    dir_path: str,
+    fabric: str,
+    path: str = typer.Option(None, "-p", "--path"),
+    density: float = typer.Option(None, "-d", "--density"),
+    structural: float = typer.Option(None, "--structural"),
+    shear: float = typer.Option(None, "--shear"),
+    bending: float = typer.Option(None, "--bending"),
+):
+    file_path = f"{dir_path}/{dir_path}.json"
+    sim = Simulation.load_scene(file_path)
+
+    if path is not None:
+        sim.load_material(path, fabric)
+
+    overrides = {k: v for k, v in [
+        ("density", density),
+        ("structural", structural),
+        ("shear", shear),
+        ("bending", bending),
+    ] if v is not None}
+
+    if overrides:
+        fab = sim.get_fabric(fabric)
+        fab.update_material(**overrides)
+
+    if path is None and not overrides:
+        err_console.print("[red]Error:[/red] Provide --path or at least one property flag (--density, --structural, --shear, --bending).")
+        raise typer.Exit(1)
+
+    sim.save_scene(file_path)
+
+
+@app.command()
+def inspect_material(ctx: typer.Context, material_path: str):
+    try:
+        file_path = Path(material_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Material file not found: {material_path}")
+
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+
+        if data.get("type") != "material":
+            raise ValueError(f"File is not a material: {material_path}")
+
+        st = ctx.obj
+        if st.json_output:
+            console.print(json.dumps(data, indent=2))
+        else:
+            material_status(str(file_path))
+    except FileNotFoundError as e:
+        err_console.print(f"[red]Error:[/red] File not found: {e.filename or material_path}")
+        raise typer.Exit(1)
+    except json.JSONDecodeError as e:
+        err_console.print(f"[red]Error:[/red] Invalid JSON: {e}")
+        raise typer.Exit(1)
+    except (ValueError, RuntimeError) as e:
+        err_console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def inspect_physics(ctx: typer.Context, physics_path: str):
+    try:
+        file_path = Path(physics_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Physics file not found: {physics_path}")
+
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+
+        if data.get("type") != "physics":
+            raise ValueError(f"File is not a physics preset: {physics_path}")
+
+        st = ctx.obj
+        if st.json_output:
+            console.print(json.dumps(data, indent=2))
+        else:
+            physics_status(str(file_path))
+    except FileNotFoundError as e:
+        err_console.print(f"[red]Error:[/red] File not found: {e.filename or physics_path}")
+        raise typer.Exit(1)
+    except json.JSONDecodeError as e:
+        err_console.print(f"[red]Error:[/red] Invalid JSON: {e}")
+        raise typer.Exit(1)
+    except (ValueError, RuntimeError) as e:
+        err_console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
 
 def create_dir(name: str):
     if not Path(name).exists():

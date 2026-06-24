@@ -102,7 +102,10 @@ def scene_status(path: str):
     section("colliders", len(colliders))
     for collider in colliders:
         t = Text()
-        t.append(f"  {collider.type}", style="cyan bold")
+        name = collider.name if collider.name else collider.type
+        t.append(f"  {name}", style="cyan bold")
+        t.append("  ")
+        t.append_text(tag(collider.type, "bold yellow on grey11"))
         console.print(t)
 
         summary = Text("  ")
@@ -125,5 +128,69 @@ def state_status(path: str):
     row("frame",     str(state.frame),         value_style="yellow")
     row("time",      f"{state.timestamp:.3f}s", value_style="yellow")
     row("particles", f"{state.particle_count:,}", value_style="yellow")
+
+    console.print()
+
+
+def material_status(path: str):
+    with open(path) as f:
+        data = json.load(f)
+
+    header = Text()
+    header.append("Material info", style="bold white")
+    console.print()
+    console.print(header)
+    console.print(Rule(style="bright_black"))
+
+    row("name",    data.get("name", "?"))
+    row("density", str(data.get("density", "?")))
+
+    console.print()
+    t = Text()
+    t.append("compliance", style="dim")
+    console.print(t)
+    console.print(Rule(style="dim"))
+
+    comp = data.get("compliance", {})
+    row("  structural", str(comp.get("structural", "?")), key_width=14)
+    row("  shear",      str(comp.get("shear", "?")), key_width=14)
+    row("  bending",    str(comp.get("bending", "?")), key_width=14)
+
+    console.print()
+
+
+def physics_status(path: str):
+    with open(path) as f:
+        data = json.load(f)
+
+    header = Text()
+    header.append("Physics info", style="bold white")
+    console.print()
+    console.print(header)
+    console.print(Rule(style="bright_black"))
+
+    row("name",       data.get("name", "?"))
+    row("substeps",   str(data.get("substeps", "?")))
+    row("iterations", str(data.get("iterations", "?")))
+    row("gravity",    str(data.get("gravity", "?")))
+
+    console.print()
+    t = Text()
+    t.append("collision", style="dim")
+    console.print(t)
+    console.print(Rule(style="dim"))
+
+    col = data.get("collision", {})
+    row("  thickness", str(col.get("thickness", "?")), key_width=14)
+
+    console.print()
+    t = Text()
+    t.append("environment", style="dim")
+    console.print(t)
+    console.print(Rule(style="dim"))
+
+    env = data.get("environment", {})
+    row("  wind",        str(env.get("wind", "?")), key_width=14)
+    row("  air_density", str(env.get("air_density", "?")), key_width=14)
 
     console.print()
