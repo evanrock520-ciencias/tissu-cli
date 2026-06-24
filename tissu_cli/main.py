@@ -24,25 +24,26 @@ def main(
 
 
 @app.command()
-def info(ctx: typer.Context, path: str):
+def info(ctx: typer.Context, dir_path: str):
+    file_path = f"{dir_path}/{dir_path}.json"
     try:
-        format = get_file_format(path)
+        format = get_file_format(file_path)
         st = ctx.obj
 
         if st.json_output:
             match format:
                 case FilesSuported.JSON:
-                    console.print(json.dumps(scene_to_dict(path), indent=2))
+                    console.print(json.dumps(scene_to_dict(file_path), indent=2))
                 case FilesSuported.TISSU:
-                    console.print(json.dumps(state_to_dict(path), indent=2))
+                    console.print(json.dumps(state_to_dict(file_path), indent=2))
         else:
             match format:
                 case FilesSuported.JSON:
-                    scene_status(path)
+                    scene_status(file_path)
                 case FilesSuported.TISSU:
-                    state_status(path)
+                    state_status(file_path)
     except FileNotFoundError as e:
-        err_console.print(f"[red]Error:[/red] File not found: {e.filename or path}")
+        err_console.print(f"[red]Error:[/red] File not found: {e.filename or file_path}")
         raise typer.Exit(1)
     except json.JSONDecodeError as e:
         err_console.print(f"[red]Error:[/red] Invalid JSON: {e}")
@@ -54,14 +55,14 @@ def info(ctx: typer.Context, path: str):
 
 @app.command()
 def bake(
-    scene_path: str,
+    dir_path: str,
     out_path: str = typer.Option("output.abc", "--out", "-o"),
     start: int = typer.Option(1, "--start"),
     end: int = typer.Option(120, "--end"),
     fps: float = typer.Option(24.0, "--fps"),
     state_path: str = typer.Option(None, "--state", "-s")
 ):
-    sim = Simulation.load_scene(scene_path)
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
 
     if state_path != None:
         sim.load_state(state_path)
@@ -75,8 +76,8 @@ def bake(
 
 
 @app.command()
-def view(scene_path: str, state_path: str = typer.Option(None, "--state", "-s")):
-    sim = Simulation.load_scene(scene_path)
+def view(dir_path: str, state_path: str = typer.Option(None, "--state", "-s")):
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
 
     if state_path != None:
         sim.load_state(state_path)
@@ -86,14 +87,14 @@ def view(scene_path: str, state_path: str = typer.Option(None, "--state", "-s"))
 
 @app.command()
 def snapshots(
-    scene_path: str,
+    dir_path: str,
     out_dir: str,
     cloth: str,
     start: int = typer.Option(1, "--start"),
     end: int = typer.Option(120, "--end"),
     state_path: str = typer.Option(None, "--state", "-s")
     ):
-    sim = Simulation.load_scene(scene_path)
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
 
     if state_path != None:
         sim.load_state(state_path)
@@ -208,11 +209,106 @@ def add_fabric(
 
     if not isinstance(scene.get("fabrics"), list):
         scene["fabrics"] = []
-    scene["fabrics"].append(fabric)
+
+    existing = next((i for i, f in enumerate(scene["fabrics"]) if f.get("name") == name), None)
+    if existing is not None:
+        scene["fabrics"][existing] = fabric
+        console.print(f"[cyan]Fabric[/cyan] [bold]{name}[/bold] updated in [dim]{file_path}[/dim]")
+    else:
+        scene["fabrics"].append(fabric)
+        console.print(f"[cyan]Fabric[/cyan] [bold]{name}[/bold] added to [dim]{file_path}[/dim]")
 
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(scene, f, indent=4, ensure_ascii=False)
-    console.print(f"[cyan]Fabric[/cyan] [bold]{name}[/bold] added to [dim]{file_path}[/dim]")
+
+
+@app.command()
+def remove_fabric(
+    dir_path: str,
+    fabric: str
+):
+    file_path =  f"{dir_path}/{dir_path}.json"
+    with open(file_path, 'r', encoding="utf-8") as f:
+        scene = json.load(f)
+
+    fabrics = scene.get("fabrics")
+    if not fabrics:
+        console.print("[red]Error:[/red] No fabrics found in scene.")
+        raise typer.Exit(1)
+    
+    target = next((i for i, f in enumerate(fabrics) if f.get("name") == fabric), None)
+    if target is None:
+        console.print(f"[yellow]Fabric [bold]{fabric}[/bold] is not part of the scene.[/yellow]")
+        raise typer.Exit(0)
+
+    del fabrics[target]
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(scene, f, indent=4, ensure_ascii=False)
+    console.print(f"[bold]{fabric}[/bold] removed")
+
+
+
+@app.command()
+def pin(
+    dir_path: str,
+    fabric: str,
+    mode: str,
+    compliance: float = typer.Option(1e-9, "--compliance"),
+    threshold: float = typer.Option(0.01, "--threshold")
+):
+    file_path = f"{dir_path}/{dir_path}.json"
+    with open(file_path, "r", encoding="utf-8") as f:
+        scene = json.load(f)
+
+    fabrics = scene.get("fabrics")
+    if not fabrics:
+        console.print("[red]Error:[/red] No fabrics found in scene.")
+        raise typer.Exit(1)
+
+    target = next((f for f in fabrics if f.get("name") == fabric), None)
+    if target is None:
+        console.print(f"[red]Error:[/red] Fabric [bold]{fabric}[/bold] not found.")
+        raise typer.Exit(1)
+
+    target["pins"] = {
+        "mode": mode,
+        "compliance": compliance,
+        "threshold": threshold
+    }
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(scene, f, indent=4, ensure_ascii=False)
+    console.print(f"[cyan]Pins[/cyan] added to fabric [bold]{fabric}[/bold] in [dim]{file_path}[/dim]")
+
+
+@app.command()
+def unpin(
+    dir_path: str,
+    fabric: str
+):
+    file_path = f"{dir_path}/{dir_path}.json"
+    with open(file_path, "r", encoding="utf-8") as f:
+        scene = json.load(f)
+
+    fabrics = scene.get("fabrics")
+    if not fabrics:
+        console.print("[red]Error:[/red] No fabrics found in scene.")
+        raise typer.Exit(1)
+
+    target = next((f for f in fabrics if f.get("name") == fabric), None)
+    if target is None:
+        console.print(f"[red]Error:[/red] Fabric [bold]{fabric}[/bold] not found.")
+        raise typer.Exit(1)
+    
+    if "pins" not in target:
+        console.print(f"[yellow]Fabric [bold]{fabric}[/bold] has no pins to remove.[/yellow]")
+        raise typer.Exit(0)
+
+    del target["pins"]
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(scene, f, indent=4, ensure_ascii=False)
+    console.print(f"[bold]{fabric}[/bold] unpinned")
+
 
 
 @app.command()
@@ -279,32 +375,32 @@ def add_collider(
 
 
 @app.command()
-def plot(scene_path: str, frame: int, fabric: str = typer.Option(None, "--fabric")):
-    sim = Simulation.load_scene(scene_path)
+def plot(dir_path: str, frame: int, fabric: str = typer.Option(None, "--fabric")):
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
     sim.simulate(frame)
     sim.plot(fabric)
 
 
 @app.command()
 def plot_gif(
-    scene_path: str,
+    dir_path: str,
     out_path: str,
     fabric: str = typer.Option(None, "--fabric"),
     start: int = typer.Option(1, "--start", "-s"),
     end: int = typer.Option(120, "--end", "-e"),
     fps: float = typer.Option(30.0, "--fps"),
     ):
-    out_path = scene_path.split("/")[0] + "/exports/preview/" + out_path
-    sim = Simulation.load_scene(scene_path)
+    out_path = f"{dir_path}/exports/preview/{out_path}"
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
     sim.plot_gif(fabric, start, end, fps, out_path)
 
 
 @app.command()
 def plot_energy(
-    scene_path: str,
+    dir_path: str,
     frame: int
 ):
-    sim = Simulation.load_scene(scene_path)
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
     sim.start_recording()
     sim.simulate(frame)
     sim.stop_recording()
@@ -312,7 +408,7 @@ def plot_energy(
 
 
 @app.command()
-def list(
+def list_files(
     ctx: typer.Context,
     dir_path: str,
     materials: bool = typer.Option(False, "-m", "--materials", help="Show materials"),
@@ -354,32 +450,33 @@ def list(
 
 @app.command()
 def physics(
-    scene_path: str,
+    dir_path: str,
     physics_path: str
 ):
-    sim = Simulation.load_scene(scene_path)
+    file_path = f"{dir_path}/{dir_path}.json"
+    sim = Simulation.load_scene(file_path)
     sim.load_physics(physics_path)
-    sim.save_scene(scene_path)
+    sim.save_scene(file_path)
 
 
 @app.command()
 def save_state(
-    scene_path: str,
+    dir_path: str,
     out_path: str,
     frame: int
 ):
-    sim = Simulation.load_scene(scene_path)
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
     sim.simulate(frame)
     sim.save_state(out_path)
 
 
 @app.command()
 def save_physics(
-    scene_path: str,
+    dir_path: str,
     out_path: str,
     name: str = typer.Option("physics", "--name")
 ):
-    sim = Simulation.load_scene(scene_path)
+    sim = Simulation.load_scene(f"{dir_path}/{dir_path}.json")
     sim.save_physics(out_path, name)
 
 
