@@ -3,7 +3,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from tissu import Simulation
+from tissu import Material, Simulation, _cloth_sdk_core as sdk
 
 from tissu_cli.display import console, scene_status, show_table, state_status
 from tissu_cli.files import get_available_files, get_file_format, get_name
@@ -247,6 +247,8 @@ def remove_fabric(
     console.print(f"[bold]{fabric}[/bold] removed")
 
 
+# TODO: Remove colliders
+
 
 @app.command()
 def pin(
@@ -480,6 +482,21 @@ def save_physics(
     sim.save_physics(out_path, name)
 
 
+@app.command()
+def material(
+    dir_path: str,
+    name: str,
+    density: float = typer.Option(0.1, "--density"),
+    structural: float = typer.Option(1e-9, "--structural"),
+    shear: float = typer.Option(1e-8, "--shear"),
+    bending: float = typer.Option(0.01, "--bending")
+):
+    file_path = f"{dir_path}/exports/materials/{name}.json"
+    Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+    material = Material(density, structural, shear, bending)
+    sdk.ConfigLoader.save_material(file_path, material._native, name)
+    console.print(f"[cyan]Material[/cyan] [bold]{name}[/bold] saved to [dim]{file_path}[/dim]")
+
 def create_dir(name: str):
     if not Path(name).exists():
         Path(name).mkdir()
@@ -493,12 +510,14 @@ def create_dir(name: str):
     if not Path(f"{name}/exports/animations").exists():
         Path(f"{name}/exports/animations").mkdir()
 
+    if not Path(f"{name}/exports/materials").exists():
+        Path(f"{name}/exports/materials").mkdir()
+
     if not Path(f"{name}/states").exists():
         Path(f"{name}/states").mkdir()
 
     if not Path(f"{name}/assets").exists():
         Path(f"{name}/assets").mkdir()
-
 
 if __name__ == "__main__":
     app()
